@@ -1,4 +1,4 @@
-e#!/usr/bin/env bash
+#!/usr/bin/env bash
 ELASTIC_USER="elastic"
 ELASTIC_PASSWD="changeme"
 ELASTIC_HOST="localhost:9200"
