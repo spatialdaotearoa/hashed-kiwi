@@ -1,1 +1,0 @@
-{ "FeatureCollection": { "properties": { "type": { "type": "string" }, "properties": { "properties": { "DISTRICT_I": { "type": "string" }, "DISTRICT_N": { "type": "string" } } }, "geometry": { "type": "geo_shape" } }, "_meta": { "fid": "fid", "geomfields": { "geometry": "MULTIPOLYGON" } } } }

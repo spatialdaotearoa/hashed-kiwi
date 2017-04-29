@@ -1,4 +1,4 @@
-# hashed-kiwi :earth_asia::wavy_dash::link::tada:
+# hashed-kiwi
 
 GraphQL API for retrieving information about New Zealand geographic administration units given latitude/longitude positions or [geohashes](https://en.wikipedia.org/wiki/Geohash).
 

@@ -2,32 +2,74 @@
 ELASTIC_USER="elastic"
 ELASTIC_PASSWD="changeme"
 ELASTIC_HOST="localhost:9200"
-IN="/data/nz-police-district-boundaries.gpkg"
-INDEX_NAME="police-districts"
 INDEX_OVERWRITE=0 # Operation will fail if index already exists
-MAPPING="/data/$INDEX_NAME-map.txt"
-# Write mapping
-docker run -v $PWD/data:/data --net=host geographica/gdal2:latest ogr2ogr --config ES_WRITEMAP $MAPPING --config ES_OVERWRITE $INDEX_OVERWRITE -f "elasticsearch" $ELASTIC_USER:$ELASTIC_PASSWD@$ELASTIC_HOST $IN -nln $INDEX_NAME
-# PUT in index
-docker run -v $PWD/data:/data --net=host geographica/gdal2:latest ogr2ogr --config ES_META $MAPPING --config ES_OVERWRITE $INDEX_OVERWRITE --config ES_BULK 100000 -f "elasticsearch" $ELASTIC_USER:$ELASTIC_PASSWD@$ELASTIC_HOST $IN -nln $INDEX_NAME
-# Check it worked (checks an intersection with Wellington)
-curl -X POST $ELASTIC_USER:$ELASTIC_PASSWD@$ELASTIC_HOST/$INDEX_NAME/FeatureCollection/_search?pretty=true -d '{
-    "query":{
-        "bool":{
-            "must":{
-                "match_all": {}
-            },
-            "filter":{
-                "geo_shape":{
-                    "geometry":{
-                        "shape":{
-                            "type": "Point",
-                            "coordinates" : [174.7762, -41.2865]
-                        },
-                        "relation": "INTERSECTS"
-                    }
-                }
-            }
-        }
-    }
-}' >> $PWD/etl/test-query-$INDEX_NAME.json
+INDEX_SHARDS=5
+INDEX_REPLICAS=1 # 1 replica for each primary shard)
+SIMPLIFICATION_TOLERANCE=0.0001 # https://gis.stackexchange.com/a/8674/25417
+
+# If you need to add a specific attribute filter for a layer, create a hash table
+# entry here
+declare -A FILTERS
+FILTERS=( ["nz-community-boards-2012-yearly-pattern"]="Name != 'Area Outside Community'" )
+
+generate_es_index_template() {
+  cat <<EOF
+{
+  "settings": {
+    "number_of_shards": $INDEX_SHARDS,
+    "number_of_replicas": $INDEX_REPLICAS
+  }
+}
+EOF
+}
+
+task(){
+  IN="/data/$(basename $1)"
+  INDEX_NAME=$(echo $1 | sed "s/.*\///" | sed "s/\..*//")
+  MAPPING="/data/$INDEX_NAME-map.txt"
+  WHERE=${FILTERS[$INDEX_NAME]}
+  [[ $WHERE = "" ]] && WHERE="1=1" || : # If no where clause, always evaluate to true to include everything
+  # Write mapping
+  docker run -v $PWD/data:/data --net=host geographica/gdal2:latest ogr2ogr --config ES_WRITEMAP $MAPPING --config ES_OVERWRITE $INDEX_OVERWRITE -f "elasticsearch" $ELASTIC_USER:$ELASTIC_PASSWD@$ELASTIC_HOST $IN -nln $INDEX_NAME
+  # PUT index
+  curl -X PUT -s -u $ELASTIC_USER:$ELASTIC_PASSWD --data "$(generate_es_index_template)" $ELASTIC_HOST/$INDEX_NAME
+  # PUT into index
+  docker run -v $PWD/data:/data --net=host geographica/gdal2:latest ogr2ogr -skipfailures -where "$WHERE" -simplify $SIMPLIFICATION_TOLERANCE --config ES_META $MAPPING --config ES_OVERWRITE $INDEX_OVERWRITE --config ES_BULK 100000 -f "elasticsearch" $ELASTIC_USER:$ELASTIC_PASSWD@$ELASTIC_HOST $IN -nln $INDEX_NAME
+  # PUT index
+  # Check it worked (checks an intersection with Wellington)
+  curl -X POST -s $ELASTIC_USER:$ELASTIC_PASSWD@$ELASTIC_HOST/$INDEX_NAME/FeatureCollection/_search?pretty=true -d'{
+      "_source": {
+        "excludes": [ "geometry" ]
+      },
+      "query":{
+          "bool":{
+              "must":{
+                  "match_all": {}
+              },
+              "filter":{
+                  "geo_shape":{
+                      "geometry":{
+                          "shape":{
+                              "type": "Point",
+                              "coordinates" : [174.7762, -41.2865]
+                          },
+                          "relation": "INTERSECTS"
+                      }
+                  }
+              }
+          }
+      }
+  }' > $PWD/etl/test-query-$INDEX_NAME.json
+  echo "Task complete"
+}
+
+N=2 # Work in batches of N, as background processes
+( for f in ./data/*.gpkg; do
+  ((i=i%N)); ((i++==0)) && wait
+  # Insert into ES, parallelising in batches of $N
+  echo "Worker $i ($f) initialised in the background..." & task $f &
+done
+wait
+)
+echo "All work completed"
+exit 0
