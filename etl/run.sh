@@ -26,7 +26,7 @@ EOF
 task(){
   IN="/data/$(basename $1)"
   INDEX_NAME=$(echo $1 | sed "s/.*\///" | sed "s/\..*//")
-  MAPPING="/data/$INDEX_NAME-map.txt"
+  MAPPING="/data/$INDEX_NAME-map.json"
   WHERE=${FILTERS[$INDEX_NAME]}
   [[ $WHERE = "" ]] && WHERE="1=1" || : # If no where clause, always evaluate to true to include everything
   # Write mapping
