@@ -2,3 +2,4 @@ data/*.gpkg
 etl/*.json
 data
 !data/*.zip
+server/venv

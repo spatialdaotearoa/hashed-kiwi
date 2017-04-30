@@ -1,0 +1,9 @@
+nz-police-district-boundaries:
+  id: DISTRICT_I
+  name: DISTRICT_N
+nz-district-health-boards-2012:
+  id: DHB12
+  name: NAME
+nz-community-boards-2012:
+  id: CB12
+  name: Name
