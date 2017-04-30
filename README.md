@@ -4,38 +4,82 @@ GraphQL API for retrieving information about New Zealand geographic administrati
 
 **In development.** Incomplete and unstable. Like what you see? Want to help out? Get in touch:
 - [@alphabeta_soup](https://twitter.com/alphabeta_soup) on Twitter
-- `#aotearoa` channel on [The Spatial Community](http://thespatialcommunity.com/) Slack.
+- `#loc-aotearoa` channel on [The Spatial Community](http://thespatialcommunity.com/) Slack.
+
+## Running for development
+
+1. Start an Elasticsearch cluster, accessible on `http://localhost:9200` with credentials `elastic:changeme`. See https://github.com/spatialdaotearoa/elasticsearch-docker
+2. Load data into this cluster:
+  - Unzip included `./data/*.zip` files to a flat structure within `./data` (more data can be added, but the process of using this data isn't entirely automated)
+  - Run `./etl/run.sh` (see `./etl/README.md` for more information)
+3. Start the GraphQL server (Elasticsearch, Elasticsearch DSL, Graphene, Flask-GraphQL):
+```
+cd ./source
+virtualenv -p python3 venv
+source venv/bin/activate
+pip install -r requirements.txt
+python api.py
+```
+4. Go to `http://localhost:5000/graphql` to see the Graph*i*QL interface.
+  - You can query this, and use introspection as well. Try out this query:
+```
+mutation point2admin {
+  createLocation(locationData: {geohash: "rbsm1hh0s"}) {
+    policeDistrict {
+      name
+    }
+    dhb {
+      name
+      id
+    }
+  }
+}
+```
+  - The `point2admin` part of the query can actually be any label you want.
+  - You can also use a different way of passing a `locationData`:
+```
+mutation getAadminBoundaryInfoFromLatLng {
+  createLocation(locationData: {lon: 174.7762 lat: -41.2865}) {
+    policeDistrict {
+      name
+    }
+    dhb {
+      name
+      id
+    }
+  }
+}
+```
+  - Currently this `mutation` with `createLocation` is the only way to query the API. It transforms a location (lat/lon or geohash of a point) to the administrative boundaries that the point intersects. Only a small number of boundaries are included in this repository:
+    - `policeDistrict` (NZ Police Districts)
+    - `dhb` (NZ District Health Boards)
+    - `communityBoard` (NZ Community Boards)
+  - Note that all of these support `name` and `id`, and nothing else for the present.
+  - Also note that `communityBoard` is not defined for all terrestrial areas in NZ. For example, Wellington central does not have a Community Board, so it will respond with `null` for any requested properties.
 
 ## Examples
 
-These are the kind of requests/responses that we'd like to make possible (but aren't yet). Examples use a location in central Wellington for illustration.
+Examples use a location in central Wellington for illustration. You can just take out the string after the `-d` in the `curl` requests and use that in Graph*i*QL.
 
 ### Using a GeoJSON point
 
 Request:
 
 ```
-curl -X POST http://hashed.kiwi/api/graphql -d '{
-  "query": "{
-    community-board-2012 {
+curl -H 'Content-type: application/graphql -d 'mutation point2admin {
+  createLocation(locationData: {lon: 174.7762 lat: -41.2865}) {
+    policeDistrict {
       name
     }
-    district-health-board-2012 {
+    dhb {
       name
-      source {
-        name
-        date
-      }
+      id
     }
-  }",
-  "operationName": "point",
-  "variables": {
-    "location": {
-      "type: "Point",
-      "coordinates": [174.7762, -41.2865]
+    communityBoard {
+      name
     }
   }
-}'
+}' http://localhost:5000/graphql
 ```
 
 Response (NB: Wellington central does not have a Community Board):
@@ -43,21 +87,19 @@ Response (NB: Wellington central does not have a Community Board):
 ```
 {
   "data": {
-    "community-board-2012": null,
-    "district-health-board-2012": {
-      "name": "Capital and Coast",
-      "source": {
-        "name": "Ministry of Health",
-        "date": "2012-08-07"
+    "createLocation": {
+      "policeDistrict": {
+        "name": "Wellington"
+      },
+      "dhb": {
+        "name": "Capital and Coast",
+        "id": "14"
+      },
+      "communityBoard": {
+        "name": null
       }
     }
-  },
-  "errors": [
-    {
-      "key": "community-board-2012"
-      "message": "No intersecting community-board-2012"
-    }
-  ]
+  }
 }
 ```
 
@@ -65,16 +107,18 @@ Response (NB: Wellington central does not have a Community Board):
 
 This example uses the same location as the above queries, but this time it is encoded as a geohash. This makes the URL easier to share for simple filters.
 
+Note: this example includes parameters that are hypothetical!
+
 Request:
 
 ```
-curl -X POST http://hashed.kiwi/api/graphql -d '{
-  "query": "{
-    police-district {
+curl -H 'Content-type: application/graphql -d 'mutation point2admin {
+  createLocation(locationData: {geohash: "rbsm1hh0s"}) {
+    policeDistrict {
       name
       id
     }
-    electorate-2014 {
+    electorate {
       name
       mp {
         name
@@ -85,12 +129,8 @@ curl -X POST http://hashed.kiwi/api/graphql -d '{
         }
       }
     }
-  }",
-  "operationName": "geohash",
-  "variables": {
-    "location": "rbsm1hh0s"
   }
-}'
+}' http://localhost:5000/graphql
 ```
 
 Response:
@@ -98,18 +138,20 @@ Response:
 ```
 {
   "data": {
-    "police-district": {
-      "name": "Wellington",
-      "id": 12
-    },
-    "electorate-2014": {
-      "name": "Wellington Central",
-      "mp": {
-        "name": "Grant Robertson",
-        "phone": "04 801 8079",
-        "email": "office@grantrobertson.co.nz",
-        "party": {
-          "name": "Labour"
+    "createLocation": {
+      "policeDistrict": {
+        "name": "Wellington",
+        "id": 12
+      },
+      "electorate": {
+        "name": "Wellington Central",
+        "mp": {
+          "name": "Grant Robertson",
+          "phone": "04 801 8079",
+          "email": "office@grantrobertson.co.nz",
+          "party": {
+            "name": "Labour"
+          }
         }
       }
     }
@@ -117,22 +159,22 @@ Response:
 }
 ```
 
-A simple, readily-shareable query to get just the electorate MP's name would be:
+A simple, readily-shareable query to just get the electorate MP's name would be:
 
 ```
-curl -X GET http://hashed.kiwi/api/graphql/rbsm1hh0s?query={electorate-2014{mp{name}}}
+http://localhost:5000/graphql?query=mutation point2admin{createLocation(locationData:{geohash:"rbsm1hh0s"}){electorate{mp{name}}}&operationName=point2admin
 ```
 
 Response:
 
 ```
-{"data":{"electorate-2014":{"mp":{"name":"Grant Robertson"}}}}
+{"data":{"electorate":{"mp":{"name":"Grant Robertson"}}}}
 ```
 
 ## How does it work?
 
 #### Briefly
 
-Authority → Spatial data (+linked data) (+metadata) → GDAL/OGR → Elasticsearch → GraphQL Server → You
+Authority → Spatial data (+linked data) (+metadata) → GDAL/OGR → Elasticsearch → Elasticsearch-DSL/Graphene/Flask-GraphQL → You
 
 (Subject to change.)
