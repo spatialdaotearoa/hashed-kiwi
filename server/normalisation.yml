@@ -4,6 +4,6 @@ nz-police-district-boundaries:
 nz-district-health-boards-2012:
   id: DHB12
   name: NAME
-nz-community-boards-2012:
+nz-community-boards-2012-yearly-pattern:
   id: CB12
   name: Name
