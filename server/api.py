@@ -4,6 +4,7 @@ from flask import Flask
 from flask_graphql import GraphQLView
 import graphene
 from graphene.types.json import JSONString
+from graphene.types.datetime import DateTime
 
 from search import (Point, GeoHash, query, NORMALISATION)
 
@@ -22,6 +23,7 @@ class CreateLocation(graphene.Mutation):
     policeDistrict = graphene.Field(lambda: PoliceDistrict)
     dhb = graphene.Field(lambda: DHB)
     communityBoard = graphene.Field(lambda: CommunityBoard)
+    schoolZone = graphene.List(lambda: SchoolZone)
 
     @staticmethod
     def mutate(root, args, context, info):
@@ -37,13 +39,14 @@ class CreateLocation(graphene.Mutation):
         # << BUSINESS LOGIC >>
         get_hits_from_index = lambda hit, index: hit.meta.index == index
         response = query(location)
-        _pd, _dhb, _cb = [
+        _pd, _dhb, _cb, _szs = [
             list(
                 filter(lambda hit: get_hits_from_index(hit, index), response))
             for index in [
                 'nz-police-district-boundaries',
                 'nz-district-health-boards-2012',
-                'nz-community-boards-2012-yearly-pattern'
+                'nz-community-boards-2012-yearly-pattern',
+                'nz-school-zones-sept-2010'
             ]
         ]
         # TODO refactor, but allow for flexibility so different boundaries can
@@ -67,11 +70,24 @@ class CreateLocation(graphene.Mutation):
             'id': _cb[0].properties[NORMALISATION[_cb[0].meta.index]['id']]
             if _cb else None
         }
+        szs = [{
+            'name': _sz.properties[NORMALISATION[_sz.meta.index]['name']],
+            'id': _sz.properties[NORMALISATION[_sz.meta.index]['id']],
+            'approvalDate':
+            _sz.properties[NORMALISATION[_sz.meta.index]['approvalDate']],
+            'effectiveDate':
+            _sz.properties[NORMALISATION[_sz.meta.index]['effectiveDate']],
+            'type': _sz.properties[NORMALISATION[_sz.meta.index]['type']],
+            'office': _sz.properties[NORMALISATION[_sz.meta.index]['office']],
+            'underReview':
+            _sz.properties[NORMALISATION[_sz.meta.index]['underReview']]
+        } for _sz in _szs]
 
         return CreateLocation(
             policeDistrict=PoliceDistrict(**pd),
             dhb=DHB(**dhb),
-            communityBoard=CommunityBoard(**cb))
+            communityBoard=CommunityBoard(**cb),
+            schoolZone=[SchoolZone(**sz) for sz in szs])
 
 
 class Mutations(graphene.ObjectType):
@@ -107,6 +123,33 @@ class PoliceDistrict(graphene.ObjectType):
     #     return self.phone
 
 
+class SchoolZone(graphene.ObjectType):
+    class Meta:
+        interfaces = (AdminBoundary, )
+
+    approvalDate = DateTime()
+    effectiveDate = DateTime()
+    type = graphene.String(
+        description="Type of school (secondary, primary, etc.)")
+    office = graphene.String()
+    underReview = graphene.String()
+
+    def resolve_approvalDate(self, args, context, info):
+        return self.approvalDate
+
+    def resolve_effectiveDate(self, args, context, info):
+        return self.effectiveDate
+
+    def resolve_type(self, args, context, info):
+        return self.type
+
+    def resolve_office(self, args, context, info):
+        return self.office
+
+    def resolve_underReview(self, args, context, info):
+        return self.underReview
+
+
 class DHB(graphene.ObjectType):
     class Meta:
         interfaces = (AdminBoundary, )
@@ -119,10 +162,11 @@ class CommunityBoard(graphene.ObjectType):
 
 class Query(graphene.ObjectType):
     policeDistrict = graphene.Field(
-        PoliceDistrict, description="NZ Police Districts")
+        PoliceDistrict, description="NZ Police District")
     ommunityBoard = graphene.Field(
-        CommunityBoard, description="NZ Community Boards (2012)")
-    dhb = graphene.Field(DHB, description="NZ District Health Boards (2012)")
+        CommunityBoard, description="NZ Community Board (2012)")
+    dhb = graphene.Field(DHB, description="NZ District Health Board (2012)")
+    schoolZone = graphene.Field(SchoolZone, description="NZ School Zone")
 
 
 app = Flask(__name__)

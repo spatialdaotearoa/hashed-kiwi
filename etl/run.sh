@@ -10,7 +10,11 @@ SIMPLIFICATION_TOLERANCE=0.0001 # https://gis.stackexchange.com/a/8674/25417
 # If you need to add a specific attribute filter for a layer, create a hash table
 # entry here
 declare -A FILTERS
-FILTERS=( ["nz-community-boards-2012-yearly-pattern"]="Name != 'Area Outside Community'" )
+FILTERS=(
+  ["nz-community-boards-2012-yearly-pattern"]="Name != 'Area Outside Community'",
+  ["nz-urban-areas-2012-yearly-pattern"]="CAST(UA12 AS integer(3)) < 500",
+  ["nz-electoral-wards-2012-yearly-pattern"]="WARD12 != '99999'"
+)
 
 generate_es_index_template() {
   cat <<EOF
@@ -26,7 +30,7 @@ EOF
 task(){
   IN="/data/$(basename $1)"
   INDEX_NAME=$(echo $1 | sed "s/.*\///" | sed "s/\..*//")
-  MAPPING="/data/$INDEX_NAME-map.json"
+  MAPPING="/data/mapping/$INDEX_NAME-map.json"
   WHERE=${FILTERS[$INDEX_NAME]}
   [[ $WHERE = "" ]] && WHERE="1=1" || : # If no where clause, always evaluate to true to include everything
   # Write mapping
@@ -62,6 +66,11 @@ task(){
   }' > $PWD/etl/test-query-$INDEX_NAME.json
   echo "Task complete"
 }
+
+( for f in ./data/*.zip; do
+  unzip -o $f -d ./data
+done
+)
 
 N=2 # Work in batches of N, as background processes
 ( for f in ./data/*.gpkg; do

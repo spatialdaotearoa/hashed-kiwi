@@ -7,3 +7,11 @@ nz-district-health-boards-2012:
 nz-community-boards-2012-yearly-pattern:
   id: CB12
   name: Name
+nz-school-zones-sept-2010:
+  id: SchoolID
+  name: SchoolName
+  approvalDate: ApprovalDate
+  effectiveDate: EffectiveDate
+  type: INSTTYPE
+  office: Office
+  underReview: Underreview
