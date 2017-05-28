@@ -1,13 +1,24 @@
+# Mapping between index names (currently the name of input files) and their
+# fields. In turn, the fields are given as external-name: internal-name pairs
+# to facilitate both a clean API and internal code standardisation.
+# Private fields can be given with a _ prefix.
+#   _allow_multiple causes the API to treat the result as non-exclusive (e.g. a
+#   point can have multiple school zones but only one postcode).
+
 nz-police-district-boundaries:
+  _allow_multiple: no
   id: DISTRICT_I
   name: DISTRICT_N
 nz-district-health-boards-2012:
+  _allow_multiple: no
   id: DHB12
   name: NAME
 nz-community-boards-2012-yearly-pattern:
+  _allow_multiple: no
   id: CB12
   name: Name
 nz-school-zones-sept-2010:
+  _allow_multiple: yes
   id: SchoolID
   name: SchoolName
   approvalDate: ApprovalDate
@@ -15,3 +26,10 @@ nz-school-zones-sept-2010:
   type: INSTTYPE
   office: Office
   underReview: Underreview
+nz-post-postcode-boundaries-june-2011-licensed-only-for-mix-:
+  _allow_multiple: no
+  postcode: POSTCODE
+general-electoral-district-boundaries-2014:
+  _allow_multiple: no
+  id: code
+  name: name
