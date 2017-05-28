@@ -14,7 +14,7 @@ GraphQL API for retrieving information about New Zealand geographic administrati
   - Run `./etl/run.sh` (see `./etl/README.md` for more information)
 3. Start the GraphQL server (Elasticsearch, Elasticsearch DSL, Graphene, Flask-GraphQL):
 ```
-cd ./source
+cd ./server
 virtualenv -p python3 venv
 source venv/bin/activate
 pip install -r requirements.txt
