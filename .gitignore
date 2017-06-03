@@ -2,5 +2,5 @@ data/*.gpkg
 etl/*.json
 data
 !data/*.zip
-*/venv
+*venv/
 server/__pycache__
