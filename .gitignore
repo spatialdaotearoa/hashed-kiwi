@@ -1,6 +1,8 @@
 data/*.gpkg
 etl/*.json
+!/etl/electorates/electorates.json
 data
 !data/*.zip
 *venv/
 server/__pycache__
+*.log
