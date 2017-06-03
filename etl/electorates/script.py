@@ -83,7 +83,8 @@ def main():
 
 def parse_electorate(electorate, url, image):
     TARGET_KEYS_AND_TRANSFORMS = (
-        ("Electorate", "electorate_name", lambda x: x),
+        ("Electorate", "name", lambda x: x),
+        ('Party', 'party', lambda x: x),
         ("Surname, Firstname", "mp", lambda x: {
             "name": flip_name(x),
             'url': urljoin(ROOT, url["Surname, Firstname"]),
@@ -103,8 +104,24 @@ def flip_name(mp_name):
 
 
 def write_out(electorates):
+    # https://www.elastic.co/guide/en/elasticsearch/reference/current/docs-bulk.html
     with open('electorates.json', 'w') as f:
-        json.dump(electorates, f, ensure_ascii=False)
+        for electorate_type in electorates.keys():
+            for electorate in electorates[electorate_type]:
+                json.dump(
+                    {
+                        'index': {
+                            '_index': 'electorates',
+                            '_type': electorate_type,
+                            '_id': electorate['name']
+                        }
+                    },
+                    f,
+                    ensure_ascii=False)
+                f.write('\n')
+                json.dump(electorate, f, ensure_ascii=False)
+                f.write('\n')
+        f.write('\n\n')
     return
 
 

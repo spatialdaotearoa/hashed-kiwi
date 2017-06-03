@@ -1,5 +1,6 @@
 from elasticsearch import Elasticsearch
 from elasticsearch_dsl import Search
+from elasticsearch_dsl.query import Match
 import geohash as Geohash
 import yaml
 
@@ -27,6 +28,11 @@ class GeoHash(Point):
         self.geohash = geohash
         super(GeoHash, self).__init__(
             *tuple(reversed(Geohash.decode(geohash))))
+
+
+def get(*args, **kwargs):
+    # return Match(using=client, index=index, fields=fields or [])
+    return client.get(*args, **kwargs)
 
 
 def query(location):

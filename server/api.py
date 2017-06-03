@@ -1,4 +1,5 @@
 import json
+from collections import namedtuple
 
 from flask import Flask
 from flask_graphql import GraphQLView
@@ -6,7 +7,7 @@ import graphene
 from graphene.types.json import JSONString
 from graphene.types.datetime import DateTime
 
-from search import (Point, GeoHash, query, NORMALISATION)
+from search import (Point, GeoHash, query, get, NORMALISATION)
 
 
 def es_geo_index_result(hits, allow_multiple):
@@ -152,9 +153,42 @@ class PostCode(graphene.ObjectType):
         return self.postcode
 
 
+class ElectorateMP2014(graphene.ObjectType):
+    name = graphene.String(description="Name of the MP")
+    url = graphene.String(description="Link to more information about the MP")
+    image = graphene.String(description="An image of the MP")
+    party = graphene.String(description="The political party of the MP")
+
+    # TODO can use a filter path to filter results in one query
+    # rather than make one per attribute! https://elasticsearch-py.readthedocs.io/en/master/api.html#response-filtering
+    # http://elasticsearch-dsl.readthedocs.io/en/latest/search_dsl.html#queries`
+
+    def resolve_name(self, args, context, info):
+        return self.name
+
+    def resolve_url(self, args, context, info):
+        return self.url
+
+    def resolve_image(self, args, context, info):
+        return self.image
+
+    def resolve_party(self, args, context, info):
+        return self.party
+
+
 class Electorate2014(graphene.ObjectType):
     class Meta:
         interfaces = (AdminBoundary, )
+
+    mp = graphene.Field(
+        ElectorateMP2014,
+        description="The Member of Parliament (General Electorate)")
+
+    def resolve_mp(self, args, context, info):
+        MP = namedtuple('MP', ['name', 'url', 'image', 'party'])
+        result = get('electorates', self.name, 'General')['_source']
+        return MP(result['mp']['name'], result['mp']['url'],
+                  result['mp']['image'], result['party'])
 
 
 class DHB(graphene.ObjectType):

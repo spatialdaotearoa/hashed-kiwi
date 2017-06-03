@@ -38,7 +38,7 @@ mutation point2admin {
   - The `point2admin` part of the query can actually be any label you want.
   - You can also use a different way of passing a `locationData`:
 ```
-mutation getAadminBoundaryInfoFromLatLng {
+mutation getAdminBoundaryInfoFromLatLng {
   createLocation(locationData: {lon: 174.7762 lat: -41.2865}) {
     policeDistrict {
       name

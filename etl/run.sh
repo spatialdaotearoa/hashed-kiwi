@@ -80,5 +80,12 @@ N=2 # Work in batches of N, as background processes
 done
 wait
 )
+
+# Load electorate attribute data into ES as a bulk item
+curl -X POST -s $ELASTIC_USER:$ELASTIC_PASSWD@$ELASTIC_HOST/_bulk --data-binary @"./electorates/electorates.json"
+
 echo "All work completed"
+
+
+
 exit 0
